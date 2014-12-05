@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
 using System.Net;
@@ -91,8 +93,23 @@ namespace WebShell
             PowerShell psh = PowerShell.Create();
             psh.RunspacePool = _runspacePool;
 
-            psh.AddScript(command, false).AddCommand("out-string").AddParameter("width", 80);
-            string commandResult = psh.Invoke<string>().FirstOrDefault() ?? string.Empty;
+            string commandResult = string.Empty;
+            try
+            {
+                psh.AddScript(command, false).AddCommand("out-string").AddParameter("width", 80);
+                commandResult = psh.Invoke<string>().FirstOrDefault() ?? string.Empty;
+
+                if (psh.HadErrors)
+                {
+                    IEnumerable<string> errorStrings = psh.Streams.Error.ReadAll().Select(e => "ERROR: " + e.ToString() + Environment.NewLine + (e.Exception != null ? e.Exception.ToString() : string.Empty));
+                    commandResult += Environment.NewLine + string.Join(Environment.NewLine, errorStrings);
+                }
+            }
+            catch (Exception e)
+            {
+                commandResult += Environment.NewLine + e.ToString();
+            }
+
             return commandResult;
         }
     }
